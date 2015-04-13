@@ -68,7 +68,7 @@ public:
 };
 
 float cameraAngleX=0, cameraAngleY=0, cameraDistance=0;
-
+int verticeSize=0, textureSize=0, normalSize=0;
 int sides = 0;
 
 GLfloat VBObuff[416256];
@@ -163,7 +163,8 @@ void lights(){
    glLightf(GL_LIGHT0,GL_LINEAR_ATTENUATION, .1);
    glLightf(GL_LIGHT0,GL_QUADRATIC_ATTENUATION, .01);
    glLightfv(GL_LIGHT0,GL_POSITION,key_position);
-   
+
+    
    glLightfv(GL_LIGHT1,GL_AMBIENT,fill_ambient);
    glLightfv(GL_LIGHT1,GL_DIFFUSE,fill_diffuse);
    glLightfv(GL_LIGHT1,GL_SPECULAR,fill_specular);
@@ -183,6 +184,11 @@ void lights(){
    glLightf(GL_LIGHT2,GL_LINEAR_ATTENUATION, .1);
    glLightf(GL_LIGHT2,GL_QUADRATIC_ATTENUATION, .01);
    glLightfv(GL_LIGHT2,GL_POSITION,back_position);
+    
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glEnable(GL_LIGHT1);
+    glEnable(GL_LIGHT2);
 }
 
 //PROBABLY NEED TO CHANGE THIS TO WORK WITH EXTERNAL MATERIAL LIBRARY
@@ -219,13 +225,13 @@ void initOGL(int argc, char **argv){
    glBufferData(GL_ARRAY_BUFFER, sizeof(VBObuff), VBObuff, GL_STATIC_DRAW);
 
    glEnableClientState(GL_VERTEX_ARRAY);
-   glVertexPointer(3, GL_FLOAT, 3*sizeof(GLfloat), BUFFER_OFFSET(0));
+   glVertexPointer(3, GL_FLOAT, 3*sizeof(GLfloat), NULL+0);
 
    //glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-   glTexCoordPointer(2, GL_FLOAT, 2*sizeof(GLfloat), BUFFER_OFFSET(156096*sizeof(GLfloat)));
+   glTexCoordPointer(2, GL_FLOAT, 2*sizeof(GLfloat), BUFFER_OFFSET(verticeSize*sizeof(GLfloat)));
 
    glEnableClientState(GL_NORMAL_ARRAY);
-   glNormalPointer(GL_FLOAT, 3*sizeof(GLfloat), BUFFER_OFFSET(260160*sizeof(GLfloat)));
+   glNormalPointer(GL_FLOAT, 3*sizeof(GLfloat),BUFFER_OFFSET((verticeSize+textureSize)*sizeof(GLfloat)));
 
 }
 
@@ -284,19 +290,36 @@ bool loadObj(string filename,
       //scan vertex/normal/text face indexes
       else if(lineIn.compare("f") == 0){
          unsigned int vertIndex[4], normIndex[4], textIndex[4];
+          
          ifs >> vertIndex[0]; ifs.ignore(1,'/');
-         ifs >> normIndex[0]; ifs.ignore(1,'/');
-         ifs >> textIndex[0] >> vertIndex[1]; ifs.ignore(1,'/');
-         ifs >> normIndex[1]; ifs.ignore(1,'/');
-         ifs >> textIndex[1] >> vertIndex[2];ifs.ignore(1,'/');
-         ifs >> normIndex[2]; ifs.ignore(1,'/');
-         ifs >> textIndex[2] >> vertIndex[3];ifs.ignore(1,'/');
-         ifs >> normIndex[3]; ifs.ignore(1,'/');
-         ifs >> textIndex[3];
+         ifs >> textIndex[0]; ifs.ignore(1,'/');
+         ifs >> normIndex[0]>> vertIndex[1]; ifs.ignore(1,'/');
+         ifs >> textIndex[1]; ifs.ignore(1,'/');
+         ifs >> normIndex[1]>> vertIndex[2];ifs.ignore(1,'/');
+         ifs >> textIndex[2]; ifs.ignore(1,'/');
+         ifs >> normIndex[2]>> vertIndex[3];ifs.ignore(1,'/');
+         ifs >> textIndex[3]; ifs.ignore(1,'/');
+         ifs >> normIndex[3];
          
-         vertexIndices.insert(vertexIndices.end(), vertIndex, vertIndex+(sizeof(vertIndex)/sizeof(unsigned int)));
+          vertexIndices.push_back(vertIndex[0]);
+          vertexIndices.push_back(vertIndex[1]);
+          vertexIndices.push_back(vertIndex[2]);
+          vertexIndices.push_back(vertIndex[3]);
+          
+          normalIndices.push_back(normIndex[0]);
+          normalIndices.push_back(normIndex[1]);
+          normalIndices.push_back(normIndex[2]);
+          normalIndices.push_back(normIndex[3]);
+          
+          textIndices.push_back(normIndex[0]);
+          textIndices.push_back(normIndex[1]);
+          textIndices.push_back(normIndex[2]);
+          textIndices.push_back(normIndex[3]);
+        
+         /*vertexIndices.insert(vertexIndices.end(), vertIndex, vertIndex+(sizeof(vertIndex)/sizeof(unsigned int)));
          normalIndices.insert(normalIndices.end(), normIndex, normIndex+(sizeof(normIndex)/sizeof(unsigned int)));
          textIndices.insert(textIndices.end(), textIndex, textIndex+(sizeof(textIndex)/sizeof(unsigned int)));
+          */
       }
       //library of materials referenced by usemtl
       else if(lineIn.compare("mtllib") == 0){
@@ -314,22 +337,26 @@ bool loadObj(string filename,
       unsigned int vertexIndex = vertexIndices[i];
       vec3 vertex = temp_vertices[vertexIndex-1];
       vertices.push_back(vertex);
+
    }
    for(unsigned int i=0; i<textIndices.size(); i++){
       unsigned int uvIndex = textIndices[i];
       vec2 uv = temp_uvs[uvIndex-1];
       uvs.push_back(uv);
+
    }
    for(unsigned int i=0; i<normalIndices.size(); i++){
       unsigned int normalIndex = normalIndices[i];
       vec3 normal = temp_normals[normalIndex-1];
       normals.push_back(normal);
+
    }
 
    return 1;
 }
 
 void draw(){
+    
    int view_pass;
    glClear(GL_ACCUM_BUFFER_BIT);
    for(view_pass=0; view_pass < VPASSES; view_pass++){
@@ -447,8 +474,6 @@ int main(int argc, char **argv){
       return 0;
    }
 
-   int verticeSize=0, normalSize=0, uvSize=0;
-
    //fill buffer
    for(unsigned int i = 0; i<vertices.size(); i++){
       VBObuff[(i*3)]=vertices[i].x;
@@ -459,15 +484,18 @@ int main(int argc, char **argv){
    for(unsigned int i = 0; i<uvs.size(); i++){
       VBObuff[verticeSize+(i*2)]=uvs[i].x;
       VBObuff[verticeSize+(i*2)+1]=uvs[i].y;
-      uvSize+=2;
+      textureSize+=2;
    }
    for(unsigned int i = 0; i<normals.size(); i++){
-      VBObuff[verticeSize+uvSize+(i*3)]=normals[i].x;
-      VBObuff[verticeSize+uvSize+(i*3)+1]=normals[i].y;
-      VBObuff[verticeSize+uvSize+(i*3)+2]=normals[i].z;
+      VBObuff[verticeSize+textureSize+(i*3)]=normals[i].x;
+      VBObuff[verticeSize+textureSize+(i*3)+1]=normals[i].y;
+      VBObuff[verticeSize+textureSize+(i*3)+2]=normals[i].z;
       normalSize+=3;
    } sides=vertices.size();
+    
+
    
+
    initOGL(argc, argv);
 
    //quit function

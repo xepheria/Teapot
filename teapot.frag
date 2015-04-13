@@ -11,7 +11,7 @@ void main(){
 
    vec4 final_color=vec4(0,0,0,1);
    //int i = 0;
-   for(int i=0; i<3; i++){
+   for(int i=0; i<1; i++){
       L = normalize(vec3(gl_LightSource[i].position)-P);
       float lambertTerm = dot(N,L);
       if (lambertTerm > 0.0){
