@@ -185,10 +185,10 @@ void lights(){
    glLightf(GL_LIGHT2,GL_QUADRATIC_ATTENUATION, .01);
    glLightfv(GL_LIGHT2,GL_POSITION,back_position);
     
-    glEnable(GL_LIGHTING);
+    /*glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     glEnable(GL_LIGHT1);
-    glEnable(GL_LIGHT2);
+    glEnable(GL_LIGHT2);*/
 }
 
 //PROBABLY NEED TO CHANGE THIS TO WORK WITH EXTERNAL MATERIAL LIBRARY
@@ -227,7 +227,7 @@ void initOGL(int argc, char **argv){
    glEnableClientState(GL_VERTEX_ARRAY);
    glVertexPointer(3, GL_FLOAT, 3*sizeof(GLfloat), NULL+0);
 
-   //glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+   glEnableClientState(GL_TEXTURE_COORD_ARRAY);
    glTexCoordPointer(2, GL_FLOAT, 2*sizeof(GLfloat), BUFFER_OFFSET(verticeSize*sizeof(GLfloat)));
 
    glEnableClientState(GL_NORMAL_ARRAY);
@@ -301,25 +301,10 @@ bool loadObj(string filename,
          ifs >> textIndex[3]; ifs.ignore(1,'/');
          ifs >> normIndex[3];
          
-          vertexIndices.push_back(vertIndex[0]);
-          vertexIndices.push_back(vertIndex[1]);
-          vertexIndices.push_back(vertIndex[2]);
-          vertexIndices.push_back(vertIndex[3]);
-          
-          normalIndices.push_back(normIndex[0]);
-          normalIndices.push_back(normIndex[1]);
-          normalIndices.push_back(normIndex[2]);
-          normalIndices.push_back(normIndex[3]);
-          
-          textIndices.push_back(normIndex[0]);
-          textIndices.push_back(normIndex[1]);
-          textIndices.push_back(normIndex[2]);
-          textIndices.push_back(normIndex[3]);
-        
-         /*vertexIndices.insert(vertexIndices.end(), vertIndex, vertIndex+(sizeof(vertIndex)/sizeof(unsigned int)));
+         vertexIndices.insert(vertexIndices.end(), vertIndex, vertIndex+(sizeof(vertIndex)/sizeof(unsigned int)));
          normalIndices.insert(normalIndices.end(), normIndex, normIndex+(sizeof(normIndex)/sizeof(unsigned int)));
          textIndices.insert(textIndices.end(), textIndex, textIndex+(sizeof(textIndex)/sizeof(unsigned int)));
-          */
+          
       }
       //library of materials referenced by usemtl
       else if(lineIn.compare("mtllib") == 0){
@@ -369,6 +354,66 @@ void draw(){
    glFlush();
 }
 
+GLuint readImage(const char * imagepath, GLuint id){
+    unsigned char header[54];
+    unsigned int dataPos;
+    unsigned int width, height;
+    unsigned int imageSize;
+    unsigned char * data;
+    
+    FILE * file = fopen(imagepath,"rb");
+    if (!file){
+        printf("Image could not be opened\n"); return 0;
+    }
+    
+    if ( fread(header, 1, 54, file)!=54 ){
+        printf("Not a correct BMP file\n");
+        return false;
+    }
+    
+    dataPos    = *(int*)&(header[0x0A]);
+    imageSize  = *(int*)&(header[0x22]);
+    width      = *(int*)&(header[0x12]);
+    height     = *(int*)&(header[0x16]);
+
+    if (imageSize==0)imageSize=width*height*3;
+    if (dataPos==0)dataPos=54;
+    
+    data = new unsigned char [imageSize];
+    fread(data,1,imageSize,file);
+    fclose(file);
+    
+    //GLuint textureID;
+    //glGenTextures(1, &textureID);
+    
+    glBindTexture(GL_TEXTURE_2D, id);
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
+    free(data);
+
+    return id;
+}
+
+void loadTextures(string files[], GLuint program){
+    
+    GLuint t1Location = glGetUniformLocation(program, "tex1");
+    GLuint t2Location = glGetUniformLocation(program, "tex2");
+    glUniform1i(t1Location, 0);
+    glUniform1i(t2Location, 1);
+ 
+    GLuint t1 = readImage(files[0].c_str(), 0);
+    GLuint t2 = readImage(files[1].c_str(), 1);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, t1);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+   
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, t2);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+}
+
 char *read_shader_program(const char *filename) 
 {
    FILE *fp;
@@ -398,7 +443,7 @@ unsigned int set_shaders(){
    glShaderSource(f,1,(const char **)&fs,NULL);
    free(vs);
    free(fs); 
-
+  
    glCompileShader(v);
    GLint shaderCompiled;
    glGetShaderiv(v, GL_COMPILE_STATUS, &shaderCompiled);
@@ -441,6 +486,7 @@ unsigned int set_shaders(){
    glAttachShader(p,v);
    glLinkProgram(p);
    glUseProgram(p);
+    
    return(p);
 }
 
@@ -455,6 +501,11 @@ void keyboard(unsigned char key, int x, int y){
    switch(key){
       case 'q': 
         glDeleteBuffers(1, &mybuf);
+           
+           glActiveTexture(0);
+           glDisable(GL_TEXTURE_2D);
+           glActiveTexture(1);
+           glDisable(GL_TEXTURE_2D);
         exit(1);
       default: break;  
    }
@@ -494,14 +545,13 @@ int main(int argc, char **argv){
    } sides=vertices.size();
     
 
-   
-
    initOGL(argc, argv);
-
-   //quit function
    glutKeyboardFunc(keyboard);
-
-   set_shaders();
+    
+   GLuint program = set_shaders();
+   string textures[] = {"tex_3.bmp", "metal.bmp"};
+   loadTextures(textures, program);
+    
    glutDisplayFunc(draw);
    glutMainLoop();
    return 0;
