@@ -18,8 +18,8 @@ else
 endif
 
 #build the LDFLAG snd CFLAGS based on variables above
-LDFLAGS = $(OPENGL_LIB) $(OIIO_LIB)
-CFLAGS = -g $(OIIO_INC)
+LDFLAGS = $(OPENGL_LIB)
+CFLAGS = -g
 
 #this will be the name of your executable
 PROJECT = teapot

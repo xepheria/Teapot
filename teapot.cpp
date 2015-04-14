@@ -58,23 +58,22 @@ public:
    double x, y, z;
 };
 
-struct face{
-public:
-   int facei[4];
-   int normali[4];
-   int texti[4]; //uv
-   string mat;
-   face(int f1, int f2, int f3, int f4, int n1, int n2, int n3, int n4, int t1, int t2, int t3, int t4, string material);
-};
-
 float cameraAngleX=0, cameraAngleY=0, cameraDistance=0;
 int verticeSize=0, textureSize=0, normalSize=0;
 int sides = 0;
 
 GLfloat VBObuff[416256];
+GLuint program;
 
 string mtllib;
-string currentMat;
+struct Material{
+   int start;
+   int end;
+   string mat;
+   Material(const int s, const int e, const string& m) : start(s), end(e), mat(m) {}
+};
+vector< Material* > mats;
+
 
 float eye[3]={4.0,2.0,1.0};
 
@@ -192,17 +191,52 @@ void lights(){
 }
 
 //PROBABLY NEED TO CHANGE THIS TO WORK WITH EXTERNAL MATERIAL LIBRARY
-void material(){
-   //make our bunny a nice shade of pink
-   float mat_ambient[]={.2,0,0,1};
-   float mat_diffuse[]={1,.2,.2,1};
-   float mat_specular[] = {.5,.5,.5,1};
-   float mat_shininess[]={1.0};
-
+bool material(string mat){
+   ifstream ifs(mtllib.c_str());
+   if(!ifs){
+      cout << "Error opening file: " << mtllib << endl;
+      return false;
+   }
+   
+   float mat_ambient[4];
+   float mat_diffuse[4];
+   float mat_specular[4];
+   float mat_shininess[1];
+   
+   string lineIn;
+   do{
+      ifs >> lineIn;
+      if(ifs.eof()){
+         cout << "No such material\n";
+         return false;
+      }
+   } while (lineIn.compare(mat) != 0);
+   while(ifs >> lineIn && lineIn.compare("newmtl") != 0){
+      if(lineIn.compare("Ka") == 0){
+         ifs >> mat_ambient[0] >> mat_ambient[1] >> mat_ambient[2];
+         mat_ambient[3] = 1.0;
+      }
+      else if(lineIn.compare("Kd") == 0){
+         ifs >> mat_diffuse[0] >> mat_diffuse[1] >> mat_diffuse[2];
+         mat_diffuse[3] = 1.0;
+      }
+      else if(lineIn.compare("Ks") == 0){
+         ifs >> mat_specular[0] >> mat_specular[1] >> mat_specular[2];
+         mat_specular[3] = 1.0;
+      }
+      else if(lineIn.compare("Ns") == 0){
+         ifs >> mat_shininess[0];
+      }
+      else if(lineIn.compare("#") == 0){
+         ifs.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+      }
+   }
    glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);
    glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diffuse);
    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);
    glMaterialfv(GL_FRONT, GL_SHININESS, mat_shininess);
+   
+   return true;
 }
 
 GLuint mybuf = 1;
@@ -218,7 +252,7 @@ void initOGL(int argc, char **argv){
    viewVolume();
    jitter_view();
    lights();
-   material();
+   //material();
    
    //buffer stuff for VBO
    glBindBuffer(GL_ARRAY_BUFFER, mybuf);
@@ -311,43 +345,58 @@ bool loadObj(string filename,
          ifs >> mtllib;
       }
       else if(lineIn.compare("usemtl") == 0){
-         ifs >> currentMat;
+         string matIn;
+         ifs >> matIn;
+         //update ending point of previous material
+         if(mats.size() > 0)
+            mats.back()->end = vertexIndices.size();
+         mats.push_back(new Material(vertexIndices.size(), 0, matIn));
       }
       else if(lineIn.compare("#") == 0){
          ifs.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
       }
    }
+   
+   ifs.close();
+   
+   //update ending point for final material
+   if(mats.size() > 0)
+      mats.back()->end = vertexIndices.size();
 
    for(unsigned int i=0; i<vertexIndices.size(); i++){
       unsigned int vertexIndex = vertexIndices[i];
       vec3 vertex = temp_vertices[vertexIndex-1];
       vertices.push_back(vertex);
-
    }
    for(unsigned int i=0; i<textIndices.size(); i++){
       unsigned int uvIndex = textIndices[i];
       vec2 uv = temp_uvs[uvIndex-1];
       uvs.push_back(uv);
-
    }
    for(unsigned int i=0; i<normalIndices.size(); i++){
       unsigned int normalIndex = normalIndices[i];
       vec3 normal = temp_normals[normalIndex-1];
       normals.push_back(normal);
-
    }
 
    return 1;
 }
 
 void draw(){
-    
+   
    int view_pass;
    glClear(GL_ACCUM_BUFFER_BIT);
    for(view_pass=0; view_pass < VPASSES; view_pass++){
       jitter_view();
       glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-      glDrawArrays(GL_QUADS, 0, sides);
+      for(unsigned i=0; i<mats.size(); i++){
+         if(!material(mats[i]->mat)){
+            cout << "Couldn't load material\n";
+            exit(-1);
+         }
+         //if we want to load textures from library file, we'd have to change the current texture(s) here.
+         glDrawArrays(GL_QUADS, mats[i]->start, mats[i]->end-mats[i]->start);
+      }
       glAccum(GL_ACCUM, 1.0/(float)(VPASSES));
    }
    glAccum(GL_RETURN, 1.0);
@@ -519,11 +568,11 @@ int main(int argc, char **argv){
    vector <vec3> normals;
    vector <vec3> tangents;
    vector <vec3> bitangents;
-   
    if(!loadObj(filename, vertices, uvs, normals, tangents, bitangents)){
       cout << "Could not read object.\n";
       return 0;
    }
+   cout << ".OBJ file read.\n";
 
    //fill buffer
    for(unsigned int i = 0; i<vertices.size(); i++){
@@ -543,17 +592,24 @@ int main(int argc, char **argv){
       VBObuff[verticeSize+textureSize+(i*3)+2]=normals[i].z;
       normalSize+=3;
    } sides=vertices.size();
+   
+   cout << vertices.size() << endl;
     
 
    initOGL(argc, argv);
    glutKeyboardFunc(keyboard);
     
-   GLuint program = set_shaders();
+   program = set_shaders();
    string textures[] = {"tex_3.bmp", "metal.bmp"};
    loadTextures(textures, program);
-    
+   
    glutDisplayFunc(draw);
    glutMainLoop();
+   
+   for(unsigned i = 0; i < mats.size(); i++){
+      delete mats[i];
+   }
+   
    return 0;
 }
 
