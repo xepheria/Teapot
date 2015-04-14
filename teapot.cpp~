@@ -437,7 +437,7 @@ GLuint readImage(const char * imagepath, GLuint id){
     
     glBindTexture(GL_TEXTURE_2D, id);
     glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
-    delete [] data;
+    free(data);
 
     return id;
 }
