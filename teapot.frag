@@ -1,39 +1,36 @@
-varying vec3 ec_vnormal, ec_vposition;
+varying vec3 ec_vnormal, ec_vposition, ec_reflect;
 
 
 uniform sampler2D tex1;
 uniform sampler2D tex2;
 uniform sampler2D tex3;
+uniform sampler2D tex4;
 
-
-void main(){
-   vec3 P, N, L, V, H;
-   vec4 diffuse_color = gl_FrontMaterial.diffuse; 
-   vec4 specular_color = gl_FrontMaterial.specular; 
-   float shininess = gl_FrontMaterial.shininess;
-
-   P = ec_vposition;
-   N = normalize(ec_vnormal);
-   V = normalize(-P);
-
-    vec4 final_color=mix(
-        texture2D(tex1, gl_TexCoord[0].st)
-        ,texture2D(tex2, gl_TexCoord[0].st)
-        ,.45);
+void main()
+{
+    vec2 d_irr_index, s_irr_index;
+    vec3 N, R, d_irr, s_irr;
+    vec4 diffuse_color = mix(texture2D(tex2, gl_TexCoord[0].st)
+                             ,texture2D(tex3, gl_TexCoord[0].st)
+                             ,.8);
+    vec4 specular_color = vec4(.0,.1,.15,1.0);//gl_FrontMaterial.specular;
+    //specular_color = vec4(.8,.8,.8,1.0);
     
+    // Avoid map edges.
+    N = 0.99*normalize(ec_vnormal);
+    R = 0.99*normalize(ec_reflect);
     
-   for(int i=0; i<1; i++){
-      L = normalize(vec3(gl_LightSource[i].position)-P);
-      float lambertTerm = dot(N,L);
-      if (lambertTerm > 0.0){
-          final_color += (gl_LightSource[i].diffuse * diffuse_color* lambertTerm);
-        
-         vec3 N = normalize(ec_vnormal);
-         vec3 H = reflect(-L, N);
-         float specular = pow(max(dot(H, N), 0.0), shininess);
-         final_color += gl_LightSource[i].specular * shininess* specular;
-      }	
-   }
+    // Rescale coordinates to [0,1].
+    d_irr_index = 0.5*(N.st + vec2(1.0,1.0));
+    s_irr_index = 0.5*(R.st + vec2(1.0,1.0));
+    
+    // Look up texture values.
+    d_irr = vec3(texture2D(tex4, d_irr_index));
+    s_irr = vec3(texture2D(tex1, s_irr_index));
+    
+    specular_color *= vec4(s_irr,1.0);
+    diffuse_color *= vec4(d_irr,1.0);
+  
 
-    gl_FragColor=final_color;
+    gl_FragColor = diffuse_color+ 0.3*specular_color;
 }

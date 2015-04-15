@@ -20,7 +20,7 @@
 
 using namespace std;
 
-#define VPASSES 10
+#define VPASSES 100
 #define JITTER 0.01
 
 struct point{
@@ -74,11 +74,7 @@ struct Material{
 };
 vector< Material* > mats;
 
-
-float eye[3]={4.0,2.0,1.0};
-
-
-
+float eye[3]={2.0,2.5,1.0};
 
 //for anti-aliasing
 double genRand(){
@@ -130,7 +126,7 @@ void jitter_view(){
 }
 
 //3 point lighting
-void lights(){
+/*void lights(){
    const float diff1 = .5;
    const float spec1 = .5;
    const float diff2 = .2;
@@ -186,8 +182,7 @@ void lights(){
    glLightf(GL_LIGHT2,GL_LINEAR_ATTENUATION, .1);
    glLightf(GL_LIGHT2,GL_QUADRATIC_ATTENUATION, .01);
    glLightfv(GL_LIGHT2,GL_POSITION,back_position);
-    
-}
+}*/
 
 //PROBABLY NEED TO CHANGE THIS TO WORK WITH EXTERNAL MATERIAL LIBRARY
 bool material(string mat){
@@ -248,9 +243,10 @@ void initOGL(int argc, char **argv){
    glClearColor(.35,.35,.35,0);
    glClearAccum(0.0,0.0,0.0,0.0);
 
+
    viewVolume();
    jitter_view();
-   lights();
+   //lights();
    //material();
    
    //buffer stuff for VBO
@@ -382,6 +378,7 @@ bool loadObj(string filename,
 }
 
 void draw(){
+
    int view_pass;
    glClear(GL_ACCUM_BUFFER_BIT);
    for(view_pass=0; view_pass < VPASSES; view_pass++){
@@ -399,6 +396,24 @@ void draw(){
    }
    glAccum(GL_RETURN, 1.0);
    glFlush();
+   
+    //Surface
+    glUseProgram(0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 4);
+    glEnable(GL_TEXTURE_2D);
+    glBegin(GL_POLYGON);
+    glTexCoord2f(0,0);
+    glVertex3f(3, 0, -1.5);
+    glTexCoord2f(0,1);
+    glVertex3f(-.7, 0, -.5);
+    glTexCoord2f(1,1);
+    glVertex3f(.5, 0, 5);
+    glEnd();
+    glFlush();
+    
+    
+    
 }
 
 GLuint readImage(const char * imagepath, GLuint id){
@@ -442,14 +457,23 @@ void loadTextures(string files[], GLuint program){
     GLuint t1Location = glGetUniformLocation(program, "tex1");
     GLuint t2Location = glGetUniformLocation(program, "tex2");
     GLuint t3Location = glGetUniformLocation(program, "tex3");
+    GLuint t4Location = glGetUniformLocation(program, "tex4");
+    GLuint t5Location = glGetUniformLocation(program, "tex5");
+    GLuint t6Location = glGetUniformLocation(program, "tex5");
     
     glUniform1i(t1Location, 0);
     glUniform1i(t2Location, 1);
     glUniform1i(t3Location, 2);
+    glUniform1i(t4Location, 3);
+    glUniform1i(t5Location, 4);
+    glUniform1i(t6Location, 5);
  
     GLuint t1 = readImage(files[0].c_str(), 0);
     GLuint t2 = readImage(files[1].c_str(), 1);
     GLuint t3 = readImage(files[2].c_str(), 2);
+    GLuint t4 = readImage(files[3].c_str(), 3);
+    GLuint t5 = readImage(files[4].c_str(), 4);
+    GLuint t6 = readImage(files[5].c_str(), 5);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, t1);
@@ -465,6 +489,22 @@ void loadTextures(string files[], GLuint program){
     glBindTexture(GL_TEXTURE_2D, t3);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, t4);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, t5);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D, t6);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
 }
 
 char *read_shader_program(const char *filename) 
@@ -559,7 +599,13 @@ void keyboard(unsigned char key, int x, int y){
            glDisable(GL_TEXTURE_2D);
            glActiveTexture(1);
            glDisable(GL_TEXTURE_2D);
+           glActiveTexture(2);
+           glDisable(GL_TEXTURE_2D);
            glActiveTexture(3);
+           glDisable(GL_TEXTURE_2D);
+           glActiveTexture(4);
+           glDisable(GL_TEXTURE_2D);
+           glActiveTexture(5);
            glDisable(GL_TEXTURE_2D);
         exit(1);
       default: break;  
@@ -606,7 +652,13 @@ int main(int argc, char **argv){
    glutKeyboardFunc(keyboard);
     
    program = set_shaders();
-   string textures[] = {"glaze_2.bmp", "metal.bmp", "tex_3.bmp"};
+   //spec map
+   //teapot tex1
+   //teapot tex2
+   //diff map
+   //table tex
+   //backgournd
+   string textures[] = {"test5.bmp", "glaze_2.bmp", "metal.bmp", "diff_map.bmp", "wood3.bmp", "test2.bmp"};
    loadTextures(textures, program);
    
    glutDisplayFunc(draw);
