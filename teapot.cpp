@@ -77,6 +77,9 @@ vector< Material* > mats;
 
 float eye[3]={4.0,2.0,1.0};
 
+
+
+
 //for anti-aliasing
 double genRand(){
    return (((double)(random()+1))/2147483649.);
@@ -184,10 +187,6 @@ void lights(){
    glLightf(GL_LIGHT2,GL_QUADRATIC_ATTENUATION, .01);
    glLightfv(GL_LIGHT2,GL_POSITION,back_position);
     
-    /*glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
-    glEnable(GL_LIGHT1);
-    glEnable(GL_LIGHT2);*/
 }
 
 //PROBABLY NEED TO CHANGE THIS TO WORK WITH EXTERNAL MATERIAL LIBRARY
@@ -266,7 +265,7 @@ void initOGL(int argc, char **argv){
 
    glEnableClientState(GL_NORMAL_ARRAY);
    glNormalPointer(GL_FLOAT, 3*sizeof(GLfloat),BUFFER_OFFSET((verticeSize+textureSize)*sizeof(GLfloat)));
-
+    
 }
 
 bool loadObj(string filename,
@@ -383,7 +382,6 @@ bool loadObj(string filename,
 }
 
 void draw(){
-   
    int view_pass;
    glClear(GL_ACCUM_BUFFER_BIT);
    for(view_pass=0; view_pass < VPASSES; view_pass++){
@@ -432,9 +430,6 @@ GLuint readImage(const char * imagepath, GLuint id){
     fread(data,1,imageSize,file);
     fclose(file);
     
-    //GLuint textureID;
-    //glGenTextures(1, &textureID);
-    
     glBindTexture(GL_TEXTURE_2D, id);
     glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
     delete [] data;
@@ -446,19 +441,28 @@ void loadTextures(string files[], GLuint program){
     
     GLuint t1Location = glGetUniformLocation(program, "tex1");
     GLuint t2Location = glGetUniformLocation(program, "tex2");
+    GLuint t3Location = glGetUniformLocation(program, "tex3");
+    
     glUniform1i(t1Location, 0);
     glUniform1i(t2Location, 1);
+    glUniform1i(t3Location, 2);
  
     GLuint t1 = readImage(files[0].c_str(), 0);
     GLuint t2 = readImage(files[1].c_str(), 1);
+    GLuint t3 = readImage(files[2].c_str(), 2);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, t1);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-   
+
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, t2);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+   
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, t3);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 }
@@ -555,6 +559,8 @@ void keyboard(unsigned char key, int x, int y){
            glDisable(GL_TEXTURE_2D);
            glActiveTexture(1);
            glDisable(GL_TEXTURE_2D);
+           glActiveTexture(3);
+           glDisable(GL_TEXTURE_2D);
         exit(1);
       default: break;  
    }
@@ -600,7 +606,7 @@ int main(int argc, char **argv){
    glutKeyboardFunc(keyboard);
     
    program = set_shaders();
-   string textures[] = {"tex_3.bmp", "metal.bmp"};
+   string textures[] = {"glaze_2.bmp", "metal.bmp", "tex_3.bmp"};
    loadTextures(textures, program);
    
    glutDisplayFunc(draw);

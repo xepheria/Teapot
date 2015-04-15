@@ -3,6 +3,7 @@ varying vec3 ec_vnormal, ec_vposition;
 
 uniform sampler2D tex1;
 uniform sampler2D tex2;
+uniform sampler2D tex3;
 
 
 void main(){
@@ -18,8 +19,9 @@ void main(){
     vec4 final_color=mix(
         texture2D(tex1, gl_TexCoord[0].st)
         ,texture2D(tex2, gl_TexCoord[0].st)
-        ,.75);
-
+        ,.45);
+    
+    
    for(int i=0; i<1; i++){
       L = normalize(vec3(gl_LightSource[i].position)-P);
       float lambertTerm = dot(N,L);
