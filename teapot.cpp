@@ -685,7 +685,7 @@ int main(int argc, char **argv){
    initOGL(argc, argv);
    glutKeyboardFunc(keyboard);
     
-   program = set_shaders();
+   set_shaders();
    //spec map
    //teapot tex1
    //teapot tex2
@@ -693,7 +693,7 @@ int main(int argc, char **argv){
    //table tex
    //backgournd
    string textures[] = {"test3.bmp", "glaze_2.bmp", "metal.bmp", "diff_map_5.bmp", "wood4.bmp", "kitchen_back.bmp"};
-   loadTextures(textures, program);
+   loadTextures(textures, p);
    
    glutDisplayFunc(draw);
    glutMainLoop();
