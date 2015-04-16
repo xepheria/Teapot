@@ -12,7 +12,7 @@ void main()
     vec3 N, R, d_irr, s_irr;
     vec4 diffuse_color = mix(texture2D(tex2, gl_TexCoord[0].st)
                              ,texture2D(tex3, gl_TexCoord[0].st)
-                             ,.8);
+                             ,.45);
     vec4 specular_color = vec4(.0,.1,.15,1.0);//gl_FrontMaterial.specular;
     //specular_color = vec4(.8,.8,.8,1.0);
     

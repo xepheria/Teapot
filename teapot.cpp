@@ -74,7 +74,7 @@ struct Material{
 };
 vector< Material* > mats;
 
-float eye[3]={2.0,2.5,1.0};
+float eye[3]={2.0,2.0,1.5};
 
 //for anti-aliasing
 double genRand(){
@@ -397,23 +397,56 @@ void draw(){
    glAccum(GL_RETURN, 1.0);
    glFlush();
    
-    //Surface
+    
     glUseProgram(0);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 4);
     glEnable(GL_TEXTURE_2D);
-    glBegin(GL_POLYGON);
+    glEnable(GL_MULTISAMPLE);
+    
+    //Vertical Wall
+    glBindTexture(GL_TEXTURE_2D, 5);
+    glRotatef(63.6,0.0,1.0,0.0);
+    glBegin(GL_QUADS);
+    glTexCoord2f(1,0);
+    glVertex3f(-5, -2, -2.5);
     glTexCoord2f(0,0);
-    glVertex3f(3, 0, -1.5);
+    glVertex3f(5, -2, -2.5);
     glTexCoord2f(0,1);
-    glVertex3f(-.7, 0, -.5);
+    glVertex3f(5, 2, -2.5);
     glTexCoord2f(1,1);
-    glVertex3f(.5, 0, 5);
+    glVertex3f(-5, 2, -2.5);
     glEnd();
     glFlush();
     
+    //Horizontal Surface
+    glBindTexture(GL_TEXTURE_2D, 4);
+    glTranslatef(0,-1.65,1);
+    glRotatef(90.0,1.0,0.0,0.0);
+    glBegin(GL_QUADS);
+    glTexCoord2f(1,0);
+    glVertex3f(-5, -2, -1.5);
+    glTexCoord2f(0,0);
+    glVertex3f(4, -2, -1.5);
+    glTexCoord2f(0,1);
+    glVertex3f(4, 2, -1.5);
+    glTexCoord2f(1,1);
+    glVertex3f(-5, 2, -1.5);
+    glEnd();
+    glFlush();
     
-    
+
+    //Hemisphere
+    /*GLUquadric* qptr=gluNewQuadric();
+    gluQuadricTexture(qptr,1);
+    gluQuadricOrientation(qptr,GLU_INSIDE);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D,0);
+    glEnable(GL_TEXTURE_2D);
+    glRotatef(-90.0,0.0,0.0,1.0);
+    glRotatef(60.0,0.0,1.0,0.0);
+    glRotatef(90.0,0.0,0.0,1.0);
+    gluSphere(qptr,40.0,64,64);
+    */
 }
 
 GLuint readImage(const char * imagepath, GLuint id){
@@ -658,7 +691,7 @@ int main(int argc, char **argv){
    //diff map
    //table tex
    //backgournd
-   string textures[] = {"test5.bmp", "glaze_2.bmp", "metal.bmp", "diff_map.bmp", "wood3.bmp", "test2.bmp"};
+   string textures[] = {"test3.bmp", "glaze_2.bmp", "metal.bmp", "diff_map_5.bmp", "wood4.bmp", "kitchen_back.bmp"};
    loadTextures(textures, program);
    
    glutDisplayFunc(draw);
