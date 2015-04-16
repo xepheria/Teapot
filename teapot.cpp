@@ -63,7 +63,7 @@ int verticeSize=0, textureSize=0, normalSize=0;
 int sides = 0;
 
 GLfloat VBObuff[416256];
-GLuint program;
+GLuint p;
 
 string mtllib;
 struct Material{
@@ -379,6 +379,7 @@ bool loadObj(string filename,
 
 void draw(){
 
+   glUseProgram(p);
    int view_pass;
    glClear(GL_ACCUM_BUFFER_BIT);
    for(view_pass=0; view_pass < VPASSES; view_pass++){
@@ -559,7 +560,7 @@ char *read_shader_program(const char *filename)
 unsigned int set_shaders(){
    GLint vertCompiled, fragCompiled;
    char *vs, *fs;
-   GLuint v, f, p;
+   GLuint v, f;
 
    v = glCreateShader(GL_VERTEX_SHADER);
    f = glCreateShader(GL_FRAGMENT_SHADER);
