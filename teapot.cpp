@@ -20,7 +20,7 @@
 
 using namespace std;
 
-#define VPASSES 100
+#define VPASSES 50
 #define JITTER 0.01
 
 struct point{
@@ -59,13 +59,14 @@ public:
 };
 
 float cameraAngleX=0, cameraAngleY=0, cameraDistance=0;
-int verticeSize=0, textureSize=0, normalSize=0;
+int verticeSize=0, textureSize=0, normalSize=0, tangentSize=0;
 int sides = 0;
 
-GLfloat VBObuff[416256];
-GLuint p;
+GLfloat VBObuff[728448];
+GLuint p; //program variable
 
 string mtllib;
+//used for the different materials pulled from mtllib
 struct Material{
    int start;
    int end;
@@ -74,7 +75,7 @@ struct Material{
 };
 vector< Material* > mats;
 
-float eye[3]={2.0,2.0,1.5};
+float eye[3]={3.0,2.2,1.7};
 
 //for anti-aliasing
 double genRand(){
@@ -125,66 +126,7 @@ void jitter_view(){
    gluLookAt(jEye.x,jEye.y,jEye.z,view.x,view.y,view.z,up.x,up.y,up.z);
 }
 
-//3 point lighting
-/*void lights(){
-   const float diff1 = .5;
-   const float spec1 = .5;
-   const float diff2 = .2;
-   const float spec2 = .2;
-   const float diff3 = .2;
-   const float spec3 = .2;
-
-   float key_ambient[]={0,0,0,0};
-   float key_diffuse[]={diff1,diff1,diff1,0};
-   float key_specular[]={spec1,spec1,spec1,0};
-   float key_position[]={-3,4,7.5,1};
-   
-   float fill_ambient[]={0,0,0,0};
-   float fill_diffuse[]={diff2,diff2,diff2,0};
-   float fill_specular[]={spec2,spec2,spec2,0};
-   float fill_position[]={3.5,1,6.5,1};
-   
-   float back_ambient[]={0,0,0,0};
-   float back_diffuse[]={diff3,diff3,diff3,0};
-   float back_specular[]={spec3,spec3,spec3,0};
-   float back_position[]={0,5,-6.5,1};
-
-   glLightModelfv(GL_LIGHT_MODEL_AMBIENT,key_ambient);
-   glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER,1);
-   
-   glLightfv(GL_LIGHT0,GL_AMBIENT,key_ambient);
-   glLightfv(GL_LIGHT0,GL_DIFFUSE,key_diffuse);
-   glLightfv(GL_LIGHT0,GL_SPECULAR,key_specular);
-   glLightf(GL_LIGHT0,GL_SPOT_EXPONENT, 1.0);
-   glLightf(GL_LIGHT0,GL_SPOT_CUTOFF, 180.0);
-   glLightf(GL_LIGHT0,GL_CONSTANT_ATTENUATION, .5);
-   glLightf(GL_LIGHT0,GL_LINEAR_ATTENUATION, .1);
-   glLightf(GL_LIGHT0,GL_QUADRATIC_ATTENUATION, .01);
-   glLightfv(GL_LIGHT0,GL_POSITION,key_position);
-
-    
-   glLightfv(GL_LIGHT1,GL_AMBIENT,fill_ambient);
-   glLightfv(GL_LIGHT1,GL_DIFFUSE,fill_diffuse);
-   glLightfv(GL_LIGHT1,GL_SPECULAR,fill_specular);
-   glLightf(GL_LIGHT1,GL_SPOT_EXPONENT, 1.0);
-   glLightf(GL_LIGHT1,GL_SPOT_CUTOFF, 180.0);
-   glLightf(GL_LIGHT1,GL_CONSTANT_ATTENUATION, .5);
-   glLightf(GL_LIGHT1,GL_LINEAR_ATTENUATION, .1);
-   glLightf(GL_LIGHT1,GL_QUADRATIC_ATTENUATION, .01);
-   glLightfv(GL_LIGHT1,GL_POSITION,fill_position);
-   
-   glLightfv(GL_LIGHT2,GL_AMBIENT,back_ambient);
-   glLightfv(GL_LIGHT2,GL_DIFFUSE,back_diffuse);
-   glLightfv(GL_LIGHT2,GL_SPECULAR,back_specular);
-   glLightf(GL_LIGHT2,GL_SPOT_EXPONENT, 1.0);
-   glLightf(GL_LIGHT2,GL_SPOT_CUTOFF, 180.0);
-   glLightf(GL_LIGHT2,GL_CONSTANT_ATTENUATION, .5);
-   glLightf(GL_LIGHT2,GL_LINEAR_ATTENUATION, .1);
-   glLightf(GL_LIGHT2,GL_QUADRATIC_ATTENUATION, .01);
-   glLightfv(GL_LIGHT2,GL_POSITION,back_position);
-}*/
-
-//PROBABLY NEED TO CHANGE THIS TO WORK WITH EXTERNAL MATERIAL LIBRARY
+//grab material from library
 bool material(string mat){
    ifstream ifs(mtllib.c_str());
    if(!ifs){
@@ -243,25 +185,23 @@ void initOGL(int argc, char **argv){
    glClearColor(.35,.35,.35,0);
    glClearAccum(0.0,0.0,0.0,0.0);
 
-
    viewVolume();
    jitter_view();
-   //lights();
-   //material();
    
    //buffer stuff for VBO
    glBindBuffer(GL_ARRAY_BUFFER, mybuf);
    glBufferData(GL_ARRAY_BUFFER, sizeof(VBObuff), VBObuff, GL_STATIC_DRAW);
 
    glEnableClientState(GL_VERTEX_ARRAY);
-   glVertexPointer(3, GL_FLOAT, 3*sizeof(GLfloat), NULL+0);
+   glVertexPointer(3, GL_FLOAT, 3*sizeof(GLfloat), BUFFER_OFFSET(0));
 
    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
    glTexCoordPointer(2, GL_FLOAT, 2*sizeof(GLfloat), BUFFER_OFFSET(verticeSize*sizeof(GLfloat)));
 
    glEnableClientState(GL_NORMAL_ARRAY);
    glNormalPointer(GL_FLOAT, 3*sizeof(GLfloat),BUFFER_OFFSET((verticeSize+textureSize)*sizeof(GLfloat)));
-    
+   
+   
 }
 
 bool loadObj(string filename,
@@ -358,10 +298,16 @@ bool loadObj(string filename,
    if(mats.size() > 0)
       mats.back()->end = vertexIndices.size();
 
+   //push the points onto the vectors in order
    for(unsigned int i=0; i<vertexIndices.size(); i++){
       unsigned int vertexIndex = vertexIndices[i];
       vec3 vertex = temp_vertices[vertexIndex-1];
+      //T and B follow same indexing as vertices
+      vec3 tangent = temp_tangents[vertexIndex-1];
+      vec3 bitangent = temp_bitangents[vertexIndex-1];
       vertices.push_back(vertex);
+      tangents.push_back(tangent);
+      bitangents.push_back(bitangent);
    }
    for(unsigned int i=0; i<textIndices.size(); i++){
       unsigned int uvIndex = textIndices[i];
@@ -377,14 +323,74 @@ bool loadObj(string filename,
    return 1;
 }
 
+void set_uniform_parameters(unsigned int p)
+{
+   int location;
+   location = glGetUniformLocation(p,"eye_position");
+   glUniform3fv(location,1,eye);
+   
+   location = glGetUniformLocation(p, "diffuse_irr_map");
+   glUniform1i(location,3);
+   
+   location = glGetUniformLocation(p, "specular_irr_map");
+   glUniform1i(location,0);
+   
+   location = glGetUniformLocation(p, "tex2");
+   glUniform1i(location,1);
+   
+   location = glGetUniformLocation(p, "tex3");
+   glUniform1i(location,2);
+   
+   location = glGetUniformLocation(p, "tex5");
+   glUniform1i(location,4);
+   
+   location = glGetUniformLocation(p, "tex6");
+   glUniform1i(location,5);
+   
+   location = glGetUniformLocation(p, "normal_map");
+   glUniform1i(location,6);
+   
+   GLuint index_tangent = glGetAttribLocation(p, "tangent");
+   GLuint index_bitangent = glGetAttribLocation(p, "bitangent");
+   
+   cout << index_tangent << " " << index_bitangent << endl;
+   //set up pointer to tangents
+   glEnableVertexAttribArray(index_tangent);
+   glVertexAttribPointer(index_tangent, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), BUFFER_OFFSET((verticeSize+textureSize+normalSize)*sizeof(GLfloat)));
+   
+   //set up pointer to bitangents
+   glEnableVertexAttribArray(index_bitangent);
+   glVertexAttribPointer(index_bitangent, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), BUFFER_OFFSET((verticeSize+textureSize+normalSize+tangentSize)*sizeof(GLfloat)));
+}
+
 void draw(){
 
    glUseProgram(p);
+   set_uniform_parameters(p);
    int view_pass;
    glClear(GL_ACCUM_BUFFER_BIT);
+   
+   //diff map
+   glActiveTexture(GL_TEXTURE3);
+   glBindTexture(GL_TEXTURE_2D,3);
+   //spec map
+   glActiveTexture(GL_TEXTURE0);
+   glBindTexture(GL_TEXTURE_2D,0);
+   //texture 1 for pot
+   glActiveTexture(GL_TEXTURE1);
+   glBindTexture(GL_TEXTURE_2D,1);
+   //texture 2 for pot
+   glActiveTexture(GL_TEXTURE2);
+   glBindTexture(GL_TEXTURE_2D,2);
+   //normal map
+   glActiveTexture(GL_TEXTURE6);
+   glBindTexture(GL_TEXTURE_2D,6);
+   
+   
    for(view_pass=0; view_pass < VPASSES; view_pass++){
       jitter_view();
       glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+      //this allows for multiple materials
       for(unsigned i=0; i<mats.size(); i++){
          if(!material(mats[i]->mat)){
             cout << "Couldn't load material\n";
@@ -398,8 +404,9 @@ void draw(){
    glAccum(GL_RETURN, 1.0);
    glFlush();
    
-    
+    //return to non custom shader rendering
     glUseProgram(0);
+    
     glActiveTexture(GL_TEXTURE0);
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_MULTISAMPLE);
@@ -481,64 +488,24 @@ GLuint readImage(const char * imagepath, GLuint id){
     
     glBindTexture(GL_TEXTURE_2D, id);
     glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    if (id==0 || id==4){
+      glTexEnvf(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_REPLACE);
+    }
     delete [] data;
 
     return id;
 }
 
 void loadTextures(string files[], GLuint program){
-    
-    GLuint t1Location = glGetUniformLocation(program, "tex1");
-    GLuint t2Location = glGetUniformLocation(program, "tex2");
-    GLuint t3Location = glGetUniformLocation(program, "tex3");
-    GLuint t4Location = glGetUniformLocation(program, "tex4");
-    GLuint t5Location = glGetUniformLocation(program, "tex5");
-    GLuint t6Location = glGetUniformLocation(program, "tex5");
-    
-    glUniform1i(t1Location, 0);
-    glUniform1i(t2Location, 1);
-    glUniform1i(t3Location, 2);
-    glUniform1i(t4Location, 3);
-    glUniform1i(t5Location, 4);
-    glUniform1i(t6Location, 5);
- 
     GLuint t1 = readImage(files[0].c_str(), 0);
     GLuint t2 = readImage(files[1].c_str(), 1);
     GLuint t3 = readImage(files[2].c_str(), 2);
     GLuint t4 = readImage(files[3].c_str(), 3);
     GLuint t5 = readImage(files[4].c_str(), 4);
     GLuint t6 = readImage(files[5].c_str(), 5);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, t1);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, t2);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-   
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, t3);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, t4);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    
-    glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_2D, t5);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    
-    glActiveTexture(GL_TEXTURE5);
-    glBindTexture(GL_TEXTURE_2D, t6);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
+    GLuint t7 = readImage(files[6].c_str(), 6); //normal map
 }
 
 char *read_shader_program(const char *filename) 
@@ -617,13 +584,6 @@ unsigned int set_shaders(){
    return(p);
 }
 
-void set_uniform_parameters(unsigned int p)
-{
-   int location;
-   location = glGetUniformLocation(p,"eye_position");
-   glUniform3fv(location,1,eye);
-}
-
 void keyboard(unsigned char key, int x, int y){
    switch(key){
       case 'q': 
@@ -640,6 +600,8 @@ void keyboard(unsigned char key, int x, int y){
            glActiveTexture(4);
            glDisable(GL_TEXTURE_2D);
            glActiveTexture(5);
+           glDisable(GL_TEXTURE_2D);
+           glActiveTexture(6);
            glDisable(GL_TEXTURE_2D);
         exit(1);
       default: break;  
@@ -661,25 +623,35 @@ int main(int argc, char **argv){
    cout << ".OBJ file read.\n";
 
    //fill buffer
+   int offset;
    for(unsigned int i = 0; i<vertices.size(); i++){
       VBObuff[(i*3)]=vertices[i].x;
       VBObuff[(i*3)+1]=vertices[i].y;
       VBObuff[(i*3)+2]=vertices[i].z;
       verticeSize+=3;
-   }
+   } offset = verticeSize;
    for(unsigned int i = 0; i<uvs.size(); i++){
-      VBObuff[verticeSize+(i*2)]=uvs[i].x;
-      VBObuff[verticeSize+(i*2)+1]=uvs[i].y;
+      VBObuff[offset+(i*2)]=uvs[i].x;
+      VBObuff[offset+(i*2)+1]=uvs[i].y;
       textureSize+=2;
-   }
+   } offset += textureSize;
    for(unsigned int i = 0; i<normals.size(); i++){
-      VBObuff[verticeSize+textureSize+(i*3)]=normals[i].x;
-      VBObuff[verticeSize+textureSize+(i*3)+1]=normals[i].y;
-      VBObuff[verticeSize+textureSize+(i*3)+2]=normals[i].z;
+      VBObuff[offset+(i*3)]=normals[i].x;
+      VBObuff[offset+(i*3)+1]=normals[i].y;
+      VBObuff[offset+(i*3)+2]=normals[i].z;
       normalSize+=3;
+   } offset += normalSize;
+   for(unsigned int i = 0; i<tangents.size(); i++){
+      VBObuff[offset+(i*3)]=tangents[i].x;
+      VBObuff[offset+(i*3)+1]=tangents[i].y;
+      VBObuff[offset+(i*3)+2]=tangents[i].z;
+      tangentSize+=3;
+   } offset += tangentSize;
+   for(unsigned int i = 0; i<bitangents.size(); i++){
+      VBObuff[offset+(i*3)]=bitangents[i].x;
+      VBObuff[offset+(i*3)+1]=bitangents[i].y;
+      VBObuff[offset+(i*3)+2]=bitangents[i].z;
    } sides=vertices.size();
-   
-   cout << vertices.size() << endl;
     
 
    initOGL(argc, argv);
@@ -692,7 +664,7 @@ int main(int argc, char **argv){
    //diff map
    //table tex
    //backgournd
-   string textures[] = {"test3.bmp", "glaze_2.bmp", "metal.bmp", "diff_map_5.bmp", "wood4.bmp", "kitchen_back.bmp"};
+   string textures[] = {"test3.bmp", "glaze_2.bmp", "metal.bmp", "diff_map_5.bmp", "wood4.bmp", "kitchen_back.bmp", "normal_map.bmp"};
    loadTextures(textures, p);
    
    glutDisplayFunc(draw);
