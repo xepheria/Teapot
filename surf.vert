@@ -11,6 +11,6 @@ void main(){
    ec_reflect = -ec_eyedir + 2.0*(dot(ec_eyedir,ec_vnormal))*ec_vnormal;
    
    //from simulated shadow render
-   tcoords = gl_TextureMatrix[7]*gl_Vertex;
+   tcoords = gl_TextureMatrix[5]*gl_Vertex;
 }
 

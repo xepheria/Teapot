@@ -14,7 +14,6 @@ void main()
     vec4 diffuse_color = texture2D(tex, gl_TexCoord[0].st);
     vec4 specular_color = gl_FrontMaterial.specular;
     float shininess = gl_FrontMaterial.shininess;
-    float pi = 3.14159;
     float depthsample, clarity;
     vec4 pccoords;
     

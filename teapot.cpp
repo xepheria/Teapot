@@ -378,10 +378,10 @@ void set_uniform_parameters(unsigned int p)
    glUniform1i(location,7);
    
    location = glGetUniformLocation(p, "shadow_map");
-   glUniform1i(location,8);
+   glUniform1i(location,5);
    
    location = glGetUniformLocation(surf, "shadow_map");
-   glUniform1i(location,8);
+   glUniform1i(location,5);
    
    GLuint index_tangent = glGetAttribLocation(p, "tangent");
    GLuint index_bitangent = glGetAttribLocation(p, "bitangent");
@@ -397,7 +397,7 @@ void set_uniform_parameters(unsigned int p)
 
 void save_matrix(float *ep, float*vp){
    glMatrixMode(GL_TEXTURE); //texture matrix stack
-   glActiveTexture(GL_TEXTURE8);
+   glActiveTexture(GL_TEXTURE5);
    glLoadIdentity();
    glTranslatef(0.0, 0.0, -0.005);
    glScalef(0.5, 0.5, 0.5);
@@ -431,7 +431,7 @@ void draw(){
 
    glUseProgram(p);
    set_uniform_parameters(p);
-   glActiveTexture(GL_TEXTURE8);
+   glActiveTexture(GL_TEXTURE5);
    glBindTexture(GL_TEXTURE_2D, 8);
    
    //set back to original eye point
@@ -457,6 +457,9 @@ void draw(){
    glActiveTexture(GL_TEXTURE7);
    glBindTexture(GL_TEXTURE_2D,7);
    
+   //shadow map
+   glActiveTexture(GL_TEXTURE5);
+   glBindTexture(GL_TEXTURE_2D,8);
    
    for(view_pass=0; view_pass < VPASSES; view_pass++){
       jitter_view();
@@ -467,28 +470,28 @@ void draw(){
             cout << "Couldn't load material\n";
             exit(-1);
          }
-         //if we want to load textures from library file, we'd have to change the current texture(s) here.
+         //if we wanted to load textures from library file, we'd have to change the current texture(s) here.
          glDrawArrays(GL_QUADS, mats[i]->start, mats[i]->end-mats[i]->start);
       }
       glAccum(GL_ACCUM, 1.0/(float)(VPASSES));
    }
    glAccum(GL_RETURN, 1.0);
-   glFlush();
+   glutSwapBuffers();
    
     //change to surface shading
     glUseProgram(surf);
     
-    glActiveTexture(GL_TEXTURE5);
+    glActiveTexture(GL_TEXTURE2);
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_MULTISAMPLE);
     
     GLuint location = glGetUniformLocation(surf, "tex");
-    glUniform1i(location,5);
+    glUniform1i(location,2);
     
     //Vertical Wall
     glBindTexture(GL_TEXTURE_2D, 6);
     glRotatef(63.6,0.0,1.0,0.0);
-    glBegin(GL_QUADS);
+    /*glBegin(GL_QUADS);
     glTexCoord2f(1,0);
     glVertex3f(-5, -2, -2.5);
     glTexCoord2f(0,0);
@@ -498,7 +501,7 @@ void draw(){
     glTexCoord2f(1,1);
     glVertex3f(-5, 2, -2.5);
     glEnd();
-    glFlush();
+    glFlush();*/
     
     //Horizontal Surface
     glBindTexture(GL_TEXTURE_2D, 5);
