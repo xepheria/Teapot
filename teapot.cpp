@@ -23,6 +23,9 @@ using namespace std;
 #define VPASSES 50
 #define JITTER 0.01
 
+const int xres = 512;
+const int yres = 512;
+
 struct point{
    float x;
    float y;
@@ -64,6 +67,7 @@ int sides = 0;
 
 GLfloat VBObuff[728448];
 GLuint p; //program variable
+GLuint surf; //surface shaders variable
 
 string mtllib;
 //used for the different materials pulled from mtllib
@@ -75,7 +79,11 @@ struct Material{
 };
 vector< Material* > mats;
 
-float eye[3]={3.0,2.2,1.7};
+float eye[3]={3.0, 2.2, 1.7};
+
+//fake light used for shadow-mapping
+GLfloat light_position[] = {-3.0, 3.2, 1.7, 1.0};
+GLfloat light_direction[] = {3.0, -3.2, -1.7, 1.0};
 
 //for anti-aliasing
 double genRand(){
@@ -175,13 +183,34 @@ bool material(string mat){
    return true;
 }
 
+void build_shadowmap(){
+   //set properties of shadow texture
+   glBindTexture(GL_TEXTURE_2D, 8); //not using this one currently...
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+   //clamp to edges
+   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+   glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+   
+   //declare empty texture
+   glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, xres, yres, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0);
+   
+   glBindTexture(GL_TEXTURE_2D, 0);
+   glBindFramebufferEXT(GL_FRAMEBUFFER, 1); //do shadowmap offscreen
+   glDrawBuffer(GL_NONE);
+   
+   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 8, 0);
+   glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+}
+
 GLuint mybuf = 1;
 void initOGL(int argc, char **argv){
    glutInit(&argc, argv);
    glutInitDisplayMode(GLUT_RGBA|GLUT_DEPTH|GLUT_ACCUM);
-   glutInitWindowSize(512,512);
+   glutInitWindowSize(xres,yres);
    glutInitWindowPosition(100,50);
    glutCreateWindow("T-Pawt");
+   build_shadowmap();
    glClearColor(.35,.35,.35,0);
    glClearAccum(0.0,0.0,0.0,0.0);
 
@@ -200,8 +229,6 @@ void initOGL(int argc, char **argv){
 
    glEnableClientState(GL_NORMAL_ARRAY);
    glNormalPointer(GL_FLOAT, 3*sizeof(GLfloat),BUFFER_OFFSET((verticeSize+textureSize)*sizeof(GLfloat)));
-   
-   
 }
 
 bool loadObj(string filename,
@@ -330,30 +357,35 @@ void set_uniform_parameters(unsigned int p)
    glUniform3fv(location,1,eye);
    
    location = glGetUniformLocation(p, "diffuse_irr_map");
-   glUniform1i(location,3);
-   
-   location = glGetUniformLocation(p, "specular_irr_map");
-   glUniform1i(location,0);
-   
-   location = glGetUniformLocation(p, "tex2");
-   glUniform1i(location,1);
-   
-   location = glGetUniformLocation(p, "tex3");
-   glUniform1i(location,2);
-   
-   location = glGetUniformLocation(p, "tex5");
    glUniform1i(location,4);
    
-   location = glGetUniformLocation(p, "tex6");
-   glUniform1i(location,5);
+   location = glGetUniformLocation(surf, "diffuse_irr_map");
+   glUniform1i(location,4);
+   
+   location = glGetUniformLocation(p, "specular_irr_map");
+   glUniform1i(location,1);
+   
+   location = glGetUniformLocation(surf, "specular_irr_map");
+   glUniform1i(location,1);
+   
+   location = glGetUniformLocation(p, "tex2");
+   glUniform1i(location,2);
+   
+   location = glGetUniformLocation(p, "tex3");
+   glUniform1i(location,3);
    
    location = glGetUniformLocation(p, "normal_map");
-   glUniform1i(location,6);
+   glUniform1i(location,7);
+   
+   location = glGetUniformLocation(p, "shadow_map");
+   glUniform1i(location,8);
+   
+   location = glGetUniformLocation(surf, "shadow_map");
+   glUniform1i(location,8);
    
    GLuint index_tangent = glGetAttribLocation(p, "tangent");
    GLuint index_bitangent = glGetAttribLocation(p, "bitangent");
    
-   cout << index_tangent << " " << index_bitangent << endl;
    //set up pointer to tangents
    glEnableVertexAttribArray(index_tangent);
    glVertexAttribPointer(index_tangent, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), BUFFER_OFFSET((verticeSize+textureSize+normalSize)*sizeof(GLfloat)));
@@ -363,28 +395,67 @@ void set_uniform_parameters(unsigned int p)
    glVertexAttribPointer(index_bitangent, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), BUFFER_OFFSET((verticeSize+textureSize+normalSize+tangentSize)*sizeof(GLfloat)));
 }
 
+void save_matrix(float *ep, float*vp){
+   glMatrixMode(GL_TEXTURE); //texture matrix stack
+   glActiveTexture(GL_TEXTURE8);
+   glLoadIdentity();
+   glTranslatef(0.0, 0.0, -0.005);
+   glScalef(0.5, 0.5, 0.5);
+   glTranslatef(1.0, 1.0, 1.0);
+   gluPerspective(45.0, (float)(xres)/(float)(yres), 0.1, 20.0);
+   gluLookAt(ep[0], ep[1], ep[2], vp[0], vp[1], vp[2], 0.0, 1.0, 0.0);
+}
+
 void draw(){
+
+   //render first from the point of view of the light source
+   float eyepoint[3], viewpoint[3];
+   glClearColor(.8, .6, .62, 1.0);
+   glBindFramebufferEXT(GL_FRAMEBUFFER, 1);
+   glUseProgram(0);
+   for(int k = 0; k < 3; k++){
+      eyepoint[k] = light_position[k];
+      viewpoint[k] = light_direction[k] + light_position[k];
+   }
+   viewVolume();
+   glLoadIdentity();
+   gluLookAt(eyepoint[0],eyepoint[1],eyepoint[2],viewpoint[0],viewpoint[1],viewpoint[2],0.0,1.0,0.0);
+   glLightfv(GL_LIGHT0,GL_POSITION,light_position);
+   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+   material("look");
+   glDrawArrays(GL_QUADS, 0, sides);
+   glFlush();
+   
+   glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+   save_matrix(eyepoint, viewpoint);
 
    glUseProgram(p);
    set_uniform_parameters(p);
+   glActiveTexture(GL_TEXTURE8);
+   glBindTexture(GL_TEXTURE_2D, 8);
+   
+   //set back to original eye point
+   viewVolume();
+   jitter_view();
+   
    int view_pass;
    glClear(GL_ACCUM_BUFFER_BIT);
    
    //diff map
-   glActiveTexture(GL_TEXTURE3);
-   glBindTexture(GL_TEXTURE_2D,3);
+   glActiveTexture(GL_TEXTURE4);
+   glBindTexture(GL_TEXTURE_2D,4);
    //spec map
-   glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_2D,0);
-   //texture 1 for pot
    glActiveTexture(GL_TEXTURE1);
    glBindTexture(GL_TEXTURE_2D,1);
-   //texture 2 for pot
+   //texture 1 for pot
    glActiveTexture(GL_TEXTURE2);
    glBindTexture(GL_TEXTURE_2D,2);
+   //texture 2 for pot
+   glActiveTexture(GL_TEXTURE3);
+   glBindTexture(GL_TEXTURE_2D,3);
    //normal map
-   glActiveTexture(GL_TEXTURE6);
-   glBindTexture(GL_TEXTURE_2D,6);
+   glActiveTexture(GL_TEXTURE7);
+   glBindTexture(GL_TEXTURE_2D,7);
    
    
    for(view_pass=0; view_pass < VPASSES; view_pass++){
@@ -404,15 +475,18 @@ void draw(){
    glAccum(GL_RETURN, 1.0);
    glFlush();
    
-    //return to non custom shader rendering
-    glUseProgram(0);
+    //change to surface shading
+    glUseProgram(surf);
     
-    glActiveTexture(GL_TEXTURE0);
+    glActiveTexture(GL_TEXTURE5);
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_MULTISAMPLE);
     
+    GLuint location = glGetUniformLocation(surf, "tex");
+    glUniform1i(location,5);
+    
     //Vertical Wall
-    glBindTexture(GL_TEXTURE_2D, 5);
+    glBindTexture(GL_TEXTURE_2D, 6);
     glRotatef(63.6,0.0,1.0,0.0);
     glBegin(GL_QUADS);
     glTexCoord2f(1,0);
@@ -427,7 +501,7 @@ void draw(){
     glFlush();
     
     //Horizontal Surface
-    glBindTexture(GL_TEXTURE_2D, 4);
+    glBindTexture(GL_TEXTURE_2D, 5);
     glTranslatef(0,-1.65,1);
     glRotatef(90.0,1.0,0.0,0.0);
     glBegin(GL_QUADS);
@@ -490,7 +564,7 @@ GLuint readImage(const char * imagepath, GLuint id){
     glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, width, height, 0, GL_BGR, GL_UNSIGNED_BYTE, data);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    if (id==0 || id==4){
+    if (id==1 || id==4){
       glTexEnvf(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_REPLACE);
     }
     delete [] data;
@@ -498,14 +572,14 @@ GLuint readImage(const char * imagepath, GLuint id){
     return id;
 }
 
-void loadTextures(string files[], GLuint program){
-    GLuint t1 = readImage(files[0].c_str(), 0);
-    GLuint t2 = readImage(files[1].c_str(), 1);
-    GLuint t3 = readImage(files[2].c_str(), 2);
-    GLuint t4 = readImage(files[3].c_str(), 3);
-    GLuint t5 = readImage(files[4].c_str(), 4);
-    GLuint t6 = readImage(files[5].c_str(), 5);
-    GLuint t7 = readImage(files[6].c_str(), 6); //normal map
+void loadTextures(string files[]){
+    GLuint t1 = readImage(files[0].c_str(), 1); //specular map
+    GLuint t2 = readImage(files[1].c_str(), 2);
+    GLuint t3 = readImage(files[2].c_str(), 3);
+    GLuint t4 = readImage(files[3].c_str(), 4); //diffuse map
+    GLuint t5 = readImage(files[4].c_str(), 5);
+    GLuint t6 = readImage(files[5].c_str(), 6);
+    GLuint t7 = readImage(files[6].c_str(), 7); //normal map
 }
 
 char *read_shader_program(const char *filename) 
@@ -524,15 +598,21 @@ char *read_shader_program(const char *filename)
    return content;
 }
 
-unsigned int set_shaders(){
+unsigned int set_shaders(int o, GLuint& program){
    GLint vertCompiled, fragCompiled;
    char *vs, *fs;
    GLuint v, f;
 
    v = glCreateShader(GL_VERTEX_SHADER);
    f = glCreateShader(GL_FRAGMENT_SHADER);
-   vs = read_shader_program("teapot.vert");
-   fs = read_shader_program("teapot.frag");
+   if(o == 1){
+      vs = read_shader_program("teapot.vert");
+      fs = read_shader_program("teapot.frag");
+   }
+   else if(o == 0){
+      vs = read_shader_program("surf.vert");
+      fs = read_shader_program("surf.frag");      
+   }
    glShaderSource(v,1,(const char **)&vs,NULL);
    glShaderSource(f,1,(const char **)&fs,NULL);
    free(vs);
@@ -575,11 +655,11 @@ unsigned int set_shaders(){
          }
    }
 
-   p = glCreateProgram();
-   glAttachShader(p,f);
-   glAttachShader(p,v);
-   glLinkProgram(p);
-   glUseProgram(p);
+   program = glCreateProgram();
+   glAttachShader(program,f);
+   glAttachShader(program,v);
+   glLinkProgram(program);
+   //glUseProgram(program);
     
    return(p);
 }
@@ -602,6 +682,10 @@ void keyboard(unsigned char key, int x, int y){
            glActiveTexture(5);
            glDisable(GL_TEXTURE_2D);
            glActiveTexture(6);
+           glDisable(GL_TEXTURE_2D);
+           glActiveTexture(7);
+           glDisable(GL_TEXTURE_2D);
+           glActiveTexture(8);
            glDisable(GL_TEXTURE_2D);
         exit(1);
       default: break;  
@@ -657,15 +741,17 @@ int main(int argc, char **argv){
    initOGL(argc, argv);
    glutKeyboardFunc(keyboard);
     
-   set_shaders();
+   set_shaders(1, p);
+   set_shaders(0, surf);
    //spec map
    //teapot tex1
    //teapot tex2
    //diff map
    //table tex
-   //backgournd
-   string textures[] = {"test3.bmp", "glaze_2.bmp", "metal.bmp", "diff_map_5.bmp", "wood4.bmp", "kitchen_back.bmp", "normal_map.bmp"};
-   loadTextures(textures, p);
+   //background
+   //normal map
+   string textures[] = {"test3.bmp", "glaze_2.bmp", "metal.bmp", "diff_map_5.bmp", "test6.bmp", "kitchen_back.bmp", "normal_map.bmp"};
+   loadTextures(textures);
    
    glutDisplayFunc(draw);
    glutMainLoop();
