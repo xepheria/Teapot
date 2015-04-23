@@ -200,6 +200,7 @@ void build_shadowmap(){
    glDrawBuffer(GL_NONE);
    
    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 8, 0);
+   
    glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
 }
 
@@ -402,7 +403,7 @@ void save_matrix(float *ep, float*vp){
    glTranslatef(0.0, 0.0, -0.005);
    glScalef(0.5, 0.5, 0.5);
    glTranslatef(1.0, 1.0, 1.0);
-   gluPerspective(45.0, (float)(xres)/(float)(yres), 0.1, 20.0);
+   gluPerspective(60.0, 1.0, 0.01, 1000.0);
    gluLookAt(ep[0], ep[1], ep[2], vp[0], vp[1], vp[2], 0.0, 1.0, 0.0);
 }
 
@@ -423,7 +424,24 @@ void draw(){
    glLightfv(GL_LIGHT0,GL_POSITION,light_position);
    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
    material("look");
+   
+   //draw teapot
    glDrawArrays(GL_QUADS, 0, sides);
+   
+   //draw flat surface
+   glRotatef(63.6,0.0,1.0,0.0);
+   glTranslatef(0,-1.65,1);
+   glRotatef(90.0,1.0,0.0,0.0);
+   glBegin(GL_QUADS);
+   glTexCoord2f(1,0);
+   glVertex3f(-5, -2, -1.5);
+   glTexCoord2f(0,0);
+   glVertex3f(4, -2, -1.5);
+   glTexCoord2f(0,1);
+   glVertex3f(4, 2, -1.5);
+   glTexCoord2f(1,1);
+   glVertex3f(-5, 2, -1.5);
+   glEnd();
    glFlush();
    
    glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
@@ -491,7 +509,7 @@ void draw(){
     //Vertical Wall
     glBindTexture(GL_TEXTURE_2D, 6);
     glRotatef(63.6,0.0,1.0,0.0);
-    /*glBegin(GL_QUADS);
+    glBegin(GL_QUADS);
     glTexCoord2f(1,0);
     glVertex3f(-5, -2, -2.5);
     glTexCoord2f(0,0);
@@ -501,7 +519,7 @@ void draw(){
     glTexCoord2f(1,1);
     glVertex3f(-5, 2, -2.5);
     glEnd();
-    glFlush();*/
+    glFlush();
     
     //Horizontal Surface
     glBindTexture(GL_TEXTURE_2D, 5);
