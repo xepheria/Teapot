@@ -302,7 +302,7 @@ void draw(){
     viewVolume();
     jitter_view();
     //fog
-    glEnable(GL_BLEND);
+    /*glEnable(GL_BLEND);
     glFogi(GL_FOG_MODE, GL_LINEAR);
     float fogColor[4] = {.35,.35,.35, 1.0};
     glFogfv(GL_FOG_COLOR, fogColor);
@@ -310,7 +310,7 @@ void draw(){
     glFogf(GL_FOG_DENSITY, 0.35f);
     glFogf(GL_FOG_START, 1.0f);
     glFogf(GL_FOG_END, 60.0f);
-    glEnable(GL_FOG);
+    glEnable(GL_FOG);*/
 
     //Pass 2
     glUseProgram(p);
@@ -351,10 +351,10 @@ void draw(){
     //Reflection
     glRotatef(180.0,0,0.0,1.0);
     glUseProgram(p);
-    glTranslatef(0, -0.06, 0);
+    glTranslatef(0, -0.04, 0);
     glDrawArrays(GL_QUADS, 0, sides);
     glFlush();
-    glTranslatef(0, 0.06, 0);
+    glTranslatef(0, 0.04, 0);
     
     //return to non custom shader rendering
     glUseProgram(0);
@@ -363,7 +363,8 @@ void draw(){
     glEnable(GL_MULTISAMPLE);
     
     //Horizontal Surface
-    //glEnable (GL_BLEND);
+    glEnable (GL_BLEND);
+    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glColor4f(1,1,1,.7);
     glBindTexture(GL_TEXTURE_2D, 4);
@@ -386,13 +387,13 @@ void draw(){
     glFlush();
     
     //Vertical Wall
-    //glDisable(GL_BLEND);
+    glDisable(GL_BLEND);
     glBindTexture(GL_TEXTURE_2D, 5);
     
     glRotatef(-90.0,1.0,0.0,0.0);
     glTranslatef(0,1.525,-1);
     
-    /*glBegin(GL_QUADS);
+    glBegin(GL_QUADS);
     glTexCoord2f(1,0);
     glVertex3f(-6, -2, -2.5);
     glTexCoord2f(0,0);
@@ -402,7 +403,7 @@ void draw(){
     glTexCoord2f(1,1);
     glVertex3f(-6, 2, -2.5);
     glEnd();
-    glFlush();*/
+    glFlush();
 }
 
 GLuint readImage(const char * imagepath, GLuint id){
@@ -598,7 +599,7 @@ int main(int argc, char **argv){
     //diff map
     //table tex
     //backgournd
-    string textures[] = {"kitchen_back.bmp", "glaze_2.bmp", "cracked.bmp", "diff_map_5.bmp", "marble.bmp", "kitchen_back.bmp", "clay_normal.bmp"};
+    string textures[] = {"kitchen_back_2.bmp", "glaze_2.bmp", "cracked.bmp", "diff_map_5.bmp", "marble.bmp", "kitchen_back_2.bmp", "clay_normal.bmp"};
     loadTextures(textures, p);
     //build_shadowmap();
     glutDisplayFunc(draw);
