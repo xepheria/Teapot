@@ -14,12 +14,11 @@ void main()
     mat3 tform;
     vec2 d_irr_index, s_irr_index;
     vec3 N, R, d_irr, s_irr, mapN;
-    vec4 tec_color = 0.7*mix(texture2D(tex2, gl_TexCoord[0].st)
+    vec4 diffuse_color = mix(texture2D(tex2, gl_TexCoord[0].st)
                               ,texture2D(tex3, gl_TexCoord[0].st)
-                             ,0.1) + 0.3*gl_FrontMaterial.diffuse;
-    vec4 diffuse_color;
-    vec4 specular_color = gl_FrontMaterial.specular;
-    float shininess = gl_FrontMaterial.shininess;
+                             ,.01);
+    vec4 specular_color = vec4(.4,.1,.1,1);//gl_FrontMaterial.specular;
+ 
     float pi = 3.14159;
     float depthsample, clarity;
     vec4 pccoords;
@@ -44,11 +43,11 @@ void main()
     d_irr = vec3(texture2D(diffuse_irr_map, d_irr_index));
     s_irr = vec3(texture2D(specular_irr_map, s_irr_index));
 
-    diffuse_color = tec_color * vec4(d_irr,1.0);
+    diffuse_color *= vec4(d_irr,1.0);
     specular_color *= vec4(s_irr,1.0);
 
-    //specular_color *= (shininess+2.0)/(8.0*pi);
 
+/*
     pccoords = tcoords/tcoords.w; //4D -> 3D
     depthsample = texture2D(shadow_map, pccoords.st).z;
     clarity = 1.0;
@@ -56,6 +55,6 @@ void main()
     if(depthsample < pccoords.z) clarity = 0.5;
     diffuse_color *= clarity;
     specular_color *= clarity;
-
-    gl_FragColor = diffuse_color + specular_color;
+*/
+    gl_FragColor = diffuse_color + .5*specular_color;
 }
