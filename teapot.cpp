@@ -207,7 +207,7 @@ void view_volume(float *ep, float *vp){
 
 
 //jitter view for anti-aliasing
-float eye[3]={3.0,2.2,1.7};
+float eye[3]={2.5, 1.9, 1.5};
 
 
 void jitter_view(){
@@ -298,10 +298,25 @@ void set_uniform_parameters(unsigned int p)
 }
 
 void draw(){
+    glUseProgram(0);
+    viewVolume();
+    jitter_view();
+    //fog
+    glEnable(GL_BLEND);
+    glFogi(GL_FOG_MODE, GL_LINEAR);
+    float fogColor[4] = {.35,.35,.35, 1.0};
+    glFogfv(GL_FOG_COLOR, fogColor);
+    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glFogf(GL_FOG_DENSITY, 0.35f);
+    glFogf(GL_FOG_START, 1.0f);
+    glFogf(GL_FOG_END, 60.0f);
+    glEnable(GL_FOG);
+
     //Pass 2
     glUseProgram(p);
     set_uniform_parameters(p);
     viewVolume();
+    
 
     //spec map
     glActiveTexture(GL_TEXTURE0);
@@ -336,8 +351,10 @@ void draw(){
     //Reflection
     glRotatef(180.0,0,0.0,1.0);
     glUseProgram(p);
+    glTranslatef(0, -0.06, 0);
     glDrawArrays(GL_QUADS, 0, sides);
     glFlush();
+    glTranslatef(0, 0.06, 0);
     
     //return to non custom shader rendering
     glUseProgram(0);
@@ -345,47 +362,47 @@ void draw(){
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_MULTISAMPLE);
     
-     //Horizontal Surface
-    glEnable (GL_BLEND);
-    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //Horizontal Surface
+    //glEnable (GL_BLEND);
+
     glColor4f(1,1,1,.7);
     glBindTexture(GL_TEXTURE_2D, 4);
 
     glRotatef(-180.0,0,0.0,1.0);
     glRotatef(63.6,0.0,1.0,0.0);
-    glTranslatef(0,-1.525,1);
+    glTranslatef(0,-1.48,1);
     glRotatef(90.0,1.0,0.0,0.0);
     
     glBegin(GL_QUADS);
     glTexCoord2f(1,0);
     glVertex3f(-5, -2, -1.5);
     glTexCoord2f(0,0);
-    glVertex3f(4, -2, -1.5);
+    glVertex3f(5.5, -2, -1.5);
     glTexCoord2f(0,1);
-    glVertex3f(4, 2, -1.5);
+    glVertex3f(5.5, 2, -1.5);
     glTexCoord2f(1,1);
     glVertex3f(-5, 2, -1.5);
     glEnd();
     glFlush();
     
     //Vertical Wall
-    glDisable(GL_BLEND);
+    //glDisable(GL_BLEND);
     glBindTexture(GL_TEXTURE_2D, 5);
     
     glRotatef(-90.0,1.0,0.0,0.0);
     glTranslatef(0,1.525,-1);
     
-    glBegin(GL_QUADS);
+    /*glBegin(GL_QUADS);
     glTexCoord2f(1,0);
-    glVertex3f(-5, -2, -2.5);
+    glVertex3f(-6, -2, -2.5);
     glTexCoord2f(0,0);
-    glVertex3f(5, -2, -2.5);
+    glVertex3f(8, -2, -2.5);
     glTexCoord2f(0,1);
-    glVertex3f(5, 2, -2.5);
+    glVertex3f(8, 2, -2.5);
     glTexCoord2f(1,1);
-    glVertex3f(-5, 2, -2.5);
+    glVertex3f(-6, 2, -2.5);
     glEnd();
-    glFlush();
+    glFlush();*/
 }
 
 GLuint readImage(const char * imagepath, GLuint id){
@@ -581,7 +598,7 @@ int main(int argc, char **argv){
     //diff map
     //table tex
     //backgournd
-    string textures[] = {"test3.bmp", "glaze_2.bmp", "cracked.bmp", "diff_map_5.bmp", "marble.bmp", "kitchen_back.bmp", "clay_normal.bmp"};
+    string textures[] = {"kitchen_back.bmp", "glaze_2.bmp", "cracked.bmp", "diff_map_5.bmp", "marble.bmp", "kitchen_back.bmp", "clay_normal.bmp"};
     loadTextures(textures, p);
     //build_shadowmap();
     glutDisplayFunc(draw);

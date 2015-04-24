@@ -17,7 +17,7 @@ void main()
     vec4 diffuse_color = mix(texture2D(tex2, gl_TexCoord[0].st)
                               ,texture2D(tex3, gl_TexCoord[0].st)
                              ,.01);
-    vec4 specular_color = vec4(.4,.1,.1,1);//gl_FrontMaterial.specular;
+    vec4 specular_color = vec4(.2,.2,.2,1);//gl_FrontMaterial.specular;
  
     float pi = 3.14159;
     float depthsample, clarity;
