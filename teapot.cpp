@@ -194,7 +194,7 @@ void viewVolume(){
     glEnable(GL_DEPTH_TEST);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(60.0, (16/9), 0.01, 1000.0);
+    gluPerspective(60.0, (16.0/9.0), 0.01, 1000.0);
     glMatrixMode(GL_MODELVIEW);
 }
 
