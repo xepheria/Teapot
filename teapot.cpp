@@ -198,12 +198,6 @@ void viewVolume(){
     glMatrixMode(GL_MODELVIEW);
 }
 
-void view_volume(float *ep, float *vp){
-    viewVolume();
-    gluLookAt(ep[0],ep[1],ep[2],vp[0],vp[1],vp[2],0.0,1.0,0.0);
-}
-
-
 
 
 //jitter view for anti-aliasing
@@ -597,11 +591,11 @@ int main(int argc, char **argv){
     //teapot tex1
     //teapot tex2
     //diff map
-    //table tex
-    //backgournd
+    //table texture
+    //background
+    //normal map
     string textures[] = {"kitchen_back_2.bmp", "glaze_2.bmp", "cracked.bmp", "diff_map_5.bmp", "marble.bmp", "kitchen_back_2.bmp", "clay_normal.bmp"};
     loadTextures(textures, p);
-    //build_shadowmap();
     glutDisplayFunc(draw);
     glutMainLoop();
     
